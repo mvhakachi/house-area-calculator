@@ -1,163 +1,309 @@
-<script>
-  function round(v, dp=2){
-    if (!isFinite(v)) return 0;
-    const p = Math.pow(10, dp);
-    return Math.round((v + Number.EPSILON) * p) / p;
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>House Area & Coverage Calculator</title>
+  <style>
+    :root { --gap: 14px; --radius: 14px; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol','Noto Color Emoji'; margin: 0; color: #111; }
+    header { padding: 18px 20px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; position: sticky; top: 0; z-index: 10; }
+    h1 { font-size: 20px; margin: 0; }
+    main { padding: 20px; display: grid; gap: var(--gap); max-width: 980px; margin: 0 auto; }
+    .card { border: 1px solid #e5e7eb; border-radius: var(--radius); padding: 16px; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
+    .grid { display: grid; gap: var(--gap); grid-template-columns: repeat(12, 1fr); }
+    .row { display: contents; }
+    .col-6 { grid-column: span 6; }
+    label { font-size: 13px; color: #374151; display: block; margin-bottom: 6px; }
+    input[type="number"], input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #d1d5db; font-size: 14px; }
+    input[type="number"]:focus, input[type="text"]:focus { outline: none; border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.08); }
+    .muted { color: #6b7280; font-size: 12px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    button { padding: 10px 14px; border-radius: 12px; border: 1px solid #111827; background: #111827; color: #fff; cursor: pointer; font-size: 14px; }
+    button.secondary { background: #fff; color: #111827; }
+    button.danger { background: #fff; color: #b91c1c; border-color: #b91c1c; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .table th, .table td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; font-size: 14px; vertical-align: top; }
+    .table th { background: #f9fafb; font-weight: 600; }
+    .kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); margin-top: 10px; }
+    .kpi .tile { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+    .tile .label { font-size: 12px; color: #6b7280; }
+    .tile .value { font-weight: 700; font-size: 18px; }
+    .help { font-size: 12px; color: #4b5563; margin-top: 6px; }
+    footer { padding: 16px 20px; color: #6b7280; font-size: 12px; text-align: center; }
+    @media (max-width: 720px){
+      .col-6 { grid-column: span 12; }
+      .kpi { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
 
-  // Accept "57.5" AND "57,5"
-  function toNum(val){
-    if (val === null || val === undefined) return 0;
-    const s = String(val).trim().replace(",", ".");
-    const n = parseFloat(s);
-    return isFinite(n) ? n : 0;
-  }
+<body>
+  <header>
+    <h1>House Area & Coverage Calculator</h1>
+  </header>
 
-  const structuresTbody = document.querySelector('#structuresTable tbody');
+  <main>
+    <section class="card">
+      <h2 style="margin-top:0">Inputs</h2>
 
-  function makeStructureRow({name="Structure", ground=0, first=0} = {}){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input type="text" class="s-name" value="${name}" placeholder="e.g. Garage"></td>
-      <td><input type="number" class="s-ground" step="0.01" min="0" value="${Number(ground).toFixed(2)}"></td>
-      <td><input type="number" class="s-first" step="0.01" min="0" value="${Number(first).toFixed(2)}"></td>
-      <td><button type="button" class="secondary s-remove">Remove</button></td>
-    `;
+      <div class="grid">
+        <div class="row">
+          <div class="col-6">
+            <label for="existingGround">Existing Ground Building Area (m²)</label>
+            <input id="existingGround" type="number" step="0.01" min="0" value="217.9">
+            <div class="help">Optional: used for extension = Total Ground − Existing Ground.</div>
+          </div>
 
-    tr.querySelector('.s-remove').addEventListener('click', () => {
-      tr.remove();
+          <div class="col-6">
+            <label for="groundTotal">Total Ground Building Area (m²)</label>
+            <input id="groundTotal" type="number" step="0.01" min="0" value="217.9" readonly>
+            <div class="help">Auto-summed from Structures.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-6">
+            <label for="firstFloor">First Floor Building Area (m²)</label>
+            <input id="firstFloor" type="number" step="0.01" min="0" value="57.5" readonly>
+            <div class="help">Auto-summed from Structures.</div>
+          </div>
+
+          <div class="col-6">
+            <label for="standArea">Total Stand Area / Erf (m²)</label>
+            <input id="standArea" type="number" step="0.01" min="0" value="461">
+            <div class="help">Coverage = Total Ground / Stand × 100.</div>
+          </div>
+        </div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+
+      <h3 style="margin:0 0 8px 0;">Structures</h3>
+      <div class="muted">Add separate structures (Garage, Lapa, Outbuilding, etc.). Totals auto-update.</div>
+
+      <table class="table" id="structuresTable">
+        <thead>
+          <tr>
+            <th style="width:40%">Structure</th>
+            <th style="width:25%">Ground (m²)</th>
+            <th style="width:25%">First Floor (m²)</th>
+            <th style="width:10%">Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="actions">
+        <button id="addStructure" class="secondary" type="button">+ Add Structure</button>
+        <button id="calc" type="button">Calculate</button>
+        <button id="reset" class="secondary" type="button">Reset</button>
+        <button id="export" class="secondary" type="button">Export CSV</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Results</h2>
+
+      <div class="kpi">
+        <div class="tile">
+          <div class="label">Extended Ground Building Area (m²)</div>
+          <div id="extendedGround" class="value">0.00</div>
+          <div class="muted">= Total Ground – Existing Ground</div>
+        </div>
+
+        <div class="tile">
+          <div class="label">Total Ground + First Floor (m²)</div>
+          <div id="totalGF" class="value">0.00</div>
+          <div class="muted">Sum of Ground + First.</div>
+        </div>
+
+        <div class="tile">
+          <div class="label">Coverage (%)</div>
+          <div id="coverage" class="value">0.00%</div>
+          <div class="muted">= Ground / Stand × 100%</div>
+        </div>
+      </div>
+
+      <table class="table" id="summary">
+        <thead>
+          <tr><th>Metric</th><th>Value</th><th>Units</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    Built for quick site measurements & compliance checks.
+  </footer>
+
+  <script>
+    function round(v, dp=2){
+      if (!isFinite(v)) return 0;
+      const p = Math.pow(10, dp);
+      return Math.round((v + Number.EPSILON) * p) / p;
+    }
+
+    // Accept "57.5" AND "57,5"
+    function toNum(val){
+      if (val === null || val === undefined) return 0;
+      const s = String(val).trim().replace(",", ".");
+      const n = parseFloat(s);
+      return isFinite(n) ? n : 0;
+    }
+
+    const structuresTbody = document.querySelector('#structuresTable tbody');
+
+    function makeStructureRow({name="Structure", ground=0, first=0} = {}){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="s-name" value="${name}" placeholder="e.g. Garage"></td>
+        <td><input type="number" class="s-ground" step="0.01" min="0" value="${Number(ground).toFixed(2)}"></td>
+        <td><input type="number" class="s-first" step="0.01" min="0" value="${Number(first).toFixed(2)}"></td>
+        <td><button type="button" class="secondary s-remove">Remove</button></td>
+      `;
+
+      tr.querySelector('.s-remove').addEventListener('click', () => {
+        tr.remove();
+        syncTotalsFromStructures();
+        calc();
+      });
+
+      tr.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('input', () => {
+          syncTotalsFromStructures();
+          calc();
+        });
+      });
+
+      return tr;
+    }
+
+    function syncTotalsFromStructures(){
+      let gSum = 0, fSum = 0;
+
+      structuresTbody.querySelectorAll('tr').forEach(tr => {
+        const g = toNum(tr.querySelector('.s-ground')?.value);
+        const f = toNum(tr.querySelector('.s-first')?.value);
+        gSum += g;
+        fSum += f;
+      });
+
+      document.getElementById('groundTotal').value = round(gSum).toFixed(2);
+      document.getElementById('firstFloor').value = round(fSum).toFixed(2);
+    }
+
+    function seedStructuresFromCurrentInputs(){
+      structuresTbody.innerHTML = "";
+      const g = toNum(document.getElementById('groundTotal').value);
+      const f = toNum(document.getElementById('firstFloor').value);
+      structuresTbody.appendChild(makeStructureRow({ name: "Main House", ground: g, first: f }));
+      syncTotalsFromStructures();
+    }
+
+    function calc(){
+      const existingGround = toNum(document.getElementById('existingGround').value);
+      const groundTotal = toNum(document.getElementById('groundTotal').value);
+      const firstFloor = toNum(document.getElementById('firstFloor').value);
+      const standArea = toNum(document.getElementById('standArea').value);
+
+      const extendedGround = Math.max(0, groundTotal - existingGround);
+      const totalGF = groundTotal + firstFloor;
+      const coverage = standArea > 0 ? (groundTotal / standArea) * 100 : 0;
+
+      document.getElementById('extendedGround').textContent = round(extendedGround).toFixed(2);
+      document.getElementById('totalGF').textContent = round(totalGF).toFixed(2);
+      document.getElementById('coverage').textContent = round(coverage).toFixed(2) + "%";
+
+      const rows = [
+        ["Existing Ground Building Area", round(existingGround), "m²"],
+        ["Extended Ground Building Area", round(extendedGround), "m²"],
+        ["First Floor Building Area", round(firstFloor), "m²"],
+        ["Ground Floor Building Area (Total)", round(groundTotal), "m²"],
+        ["Total Ground + First Floor", round(totalGF), "m²"],
+        ["Stand Area", round(standArea), "m²"],
+        ["Coverage", round(coverage).toFixed(2), "%"]
+      ];
+
+      const tbody = document.querySelector('#summary tbody');
+      tbody.innerHTML = "";
+      for (const r of rows){
+        const tr = document.createElement('tr');
+        r.forEach((v,i)=>{
+          const td = document.createElement('td');
+          td.textContent = (i === 1 && typeof v === 'number') ? v.toFixed(2) : v;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      }
+    }
+
+    function resetForm(){
+      document.getElementById('existingGround').value = "";
+      document.getElementById('standArea').value = "";
+      // Keep totals aligned with structures seed
+      document.getElementById('groundTotal').value = "0";
+      document.getElementById('firstFloor').value = "0";
+      seedStructuresFromCurrentInputs();
+      calc();
+    }
+
+    function exportCSV(){
+      const rows = [["Metric","Value","Units"]];
+      rows.push(["--- Structures ---","",""]);
+      structuresTbody.querySelectorAll('tr').forEach(tr => {
+        const name = tr.querySelector('.s-name')?.value || "Structure";
+        const g = toNum(tr.querySelector('.s-ground')?.value).toFixed(2);
+        const f = toNum(tr.querySelector('.s-first')?.value).toFixed(2);
+        rows.push([name, `G:${g} / F:${f}`, "m²"]);
+      });
+
+      rows.push(["--- Summary ---","",""]);
+      document.querySelectorAll('#summary tbody tr').forEach(tr=>{
+        const cols = Array.from(tr.children).map(td=>td.textContent);
+        rows.push(cols);
+      });
+
+      const csv = rows.map(r=>r.map(x => `"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], {type: "text/csv"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "house_area_coverage.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    document.getElementById('addStructure').addEventListener('click', () => {
+      structuresTbody.appendChild(makeStructureRow({ name: "New Structure", ground: 0, first: 0 }));
       syncTotalsFromStructures();
       calc();
     });
 
-    tr.querySelectorAll('input').forEach(inp => {
-      inp.addEventListener('input', () => {
-        syncTotalsFromStructures();
-        calc();
-      });
+    document.getElementById('calc').addEventListener('click', () => {
+      syncTotalsFromStructures();
+      calc();
     });
 
-    return tr;
-  }
+    document.getElementById('reset').addEventListener('click', resetForm);
 
-  function syncTotalsFromStructures(){
-    let gSum = 0, fSum = 0;
-
-    structuresTbody.querySelectorAll('tr').forEach(tr => {
-      const g = toNum(tr.querySelector('.s-ground').value);
-      const f = toNum(tr.querySelector('.s-first').value);
-      gSum += g;
-      fSum += f;
+    document.getElementById('export').addEventListener('click', () => {
+      syncTotalsFromStructures();
+      calc();
+      exportCSV();
     });
 
-    document.getElementById('groundTotal').value = round(gSum).toFixed(2);
-    document.getElementById('firstFloor').value = round(fSum).toFixed(2);
-  }
+    // Auto update when stand/existing changes
+    ['existingGround','standArea'].forEach(id=>{
+      document.getElementById(id).addEventListener('input', calc);
+    });
 
-  function seedStructuresFromCurrentInputs(){
-    structuresTbody.innerHTML = "";
-
-    // Start with one row that matches your existing totals (so nothing changes)
-    const g = toNum(document.getElementById('groundTotal').value);
-    const f = toNum(document.getElementById('firstFloor').value);
-
-    structuresTbody.appendChild(makeStructureRow({ name: "Main House", ground: g, first: f }));
-    syncTotalsFromStructures();
-  }
-
-  function calc(){
-    const existingGround = toNum(document.getElementById('existingGround').value);
-    const groundTotal = toNum(document.getElementById('groundTotal').value);
-    const firstFloor = toNum(document.getElementById('firstFloor').value);
-    const standArea = toNum(document.getElementById('standArea').value);
-
-    const extendedGround = Math.max(0, groundTotal - existingGround);
-    const totalGF = groundTotal + firstFloor;
-    const coverage = standArea > 0 ? (groundTotal / standArea) * 100 : 0;
-
-    document.getElementById('extendedGround').textContent = round(extendedGround).toFixed(2);
-    document.getElementById('totalGF').textContent = round(totalGF).toFixed(2);
-    document.getElementById('coverage').textContent = round(coverage).toFixed(2) + "%";
-
-    const rows = [
-      ["Existing Ground Building Area", round(existingGround), "m²"],
-      ["Extended Ground Building Area", round(extendedGround), "m²"],
-      ["First Floor Building Area", round(firstFloor), "m²"],
-      ["Ground Floor Building Area (Total)", round(groundTotal), "m²"],
-      ["Total Ground + First Floor", round(totalGF), "m²"],
-      ["Stand Area", round(standArea), "m²"],
-      ["Coverage", round(coverage).toFixed(2), "%"]
-    ];
-
-    const tbody = document.querySelector('#summary tbody');
-    tbody.innerHTML = "";
-    for (const r of rows){
-      const tr = document.createElement('tr');
-      r.forEach((v,i)=>{
-        const td = document.createElement('td');
-        td.textContent = (i === 1 && typeof v === 'number') ? v.toFixed(2) : v;
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    }
-  }
-
-  function resetForm(){
-    document.getElementById('existingGround').value = "";
-    document.getElementById('groundTotal').value = "";
-    document.getElementById('firstFloor').value = "";
-    document.getElementById('standArea').value = "";
+    // Init
     seedStructuresFromCurrentInputs();
     calc();
-  }
+  </script>
+</body>
+</html>
 
-  function exportCSV(){
-    const rows = [["Metric","Value","Units"]];
-
-    // Add structures to CSV first
-    rows.push(["--- Structures ---","",""]);
-    structuresTbody.querySelectorAll('tr').forEach(tr => {
-      const name = tr.querySelector('.s-name').value || "Structure";
-      const g = toNum(tr.querySelector('.s-ground').value).toFixed(2);
-      const f = toNum(tr.querySelector('.s-first').value).toFixed(2);
-      rows.push([name, `G:${g} / F:${f}`, "m²"]);
-    });
-
-    rows.push(["--- Summary ---","",""]);
-    document.querySelectorAll('#summary tbody tr').forEach(tr=>{
-      const cols = Array.from(tr.children).map(td=>td.textContent);
-      rows.push(cols);
-    });
-
-    const csv = rows.map(r=>r.map(x => `"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], {type: "text/csv"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "house_area_coverage.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  document.getElementById('addStructure').addEventListener('click', () => {
-    structuresTbody.appendChild(makeStructureRow({ name: "New Structure", ground: 0, first: 0 }));
-    syncTotalsFromStructures();
-    calc();
-  });
-
-  document.getElementById('calc').addEventListener('click', () => {
-    syncTotalsFromStructures();
-    calc();
-  });
-
-  document.getElementById('reset').addEventListener('click', resetForm);
-  document.getElementById('export').addEventListener('click', () => {
-    syncTotalsFromStructures();
-    calc();
-    exportCSV();
-  });
-
-  // Init
-  seedStructuresFromCurrentInputs();
-  calc();
-</script>
 
